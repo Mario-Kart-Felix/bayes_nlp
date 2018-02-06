@@ -1,0 +1,4 @@
+"0","pred_results <- read_csv(""Data/test_mail_predictions_914_1001.csv"")
+"
+"2","Error: 'Data/test_mail_predictions_914_1001.csv' does not exist in current working directory ('C:/Users/Daniel/Documents/Git Repos/MM_spam_nodata').
+"

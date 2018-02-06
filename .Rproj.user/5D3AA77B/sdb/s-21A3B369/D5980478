@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "source(\"requirements.R\")\nlibrary(tidytext)\nlibrary(stringr)\nlibrary(fuzzyjoin)\n\nfraud_messages <- load_fraud_messages()\nham_messages <- load_regular_messages()\n\ndata(\"stop_words\")\nstop_regex = data.frame(token = c(\"\\\\b[0-9]{1}\\\\b\", \"_{2,}\", \"[^A-Za-z0-9[:punct:]]+\"), stringsAsFactors = FALSE)\nstem_terms = c(\"grantstar\", \"grant(?!star)\")\ndoc_stripped <- simplify_document(fraud_messages, message, stop_words, stop_regex, stem_terms)\n\nwrite.csv(test, \"asdfasdf.csv\")\n#priors\np_spam <- nrow(fraud_messages)/(nrow(fraud_messages)+nrow(ham_messages))\np_ham <- 1-p_spam\n\n#remove duplicate messages to prevent overfitting\nfraud_messages <- fraud_messages %>% distinct(message, .keep_all = TRUE)\n\n#get training and test sets\ntrain_indices_fraud <- sample(seq(nrow(fraud_messages)), floor(0.8*nrow(fraud_messages)))\ntrain_indices_ham <- sample(seq(nrow(ham_messages)), floor(0.8*nrow(ham_messages)))\n\nfraud_train <- fraud_messages[train_indices_fraud,]\nfraud_test <- fraud_messages[-train_indices_fraud,]\n\nham_train <- ham_messages[train_indices_ham,]\nham_test <- ham_messages[-train_indices_ham,]\n\nprob_tables <- get_prob_tables(fraud_train, ham_train, multinomial = TRUE)\n\ntest_emails <- rbind(fraud_test %>% select(message), ham_test %>% select(message)) %>%\n  mutate(type = c(rep(1, nrow(fraud_test)), rep(0, nrow(ham_test))))\n\ndf <- test_model(test_emails, prob_tables[[1]], prob_tables[[2]], multinomial = TRUE, prior_ham = p_ham, prior_spam = p_spam)\n\n#evaluate performance, check false positives\ntable(test_emails[test_indices,]$type, test_emails[test_indices,]$pred)\ntable(df$type, df$pred)\n\ndf[df$type == 0 & df$pred == 1,]$message\n\n#junjin\nemails_junjin <- fraud_train %>% filter(grepl(\"junjin\", email) == TRUE)\ncounts_junjin <- get_counts_unique(emails_junjin, message)\n\nwrite_csv(prob_tables[[2]], \"Data/prob_table_ham.csv\")\nwrite_csv(prob_tables[[1]], \"Data/prob_table_spam.csv\")\nwrite_csv(df, \"Data/test_mail_predictions.csv\")\nwrite_csv(counts_junjin, \"Data/junjin_words.csv\")\n\n########### Test Toxicity Comments ################\n\ncomments_scores <- read_csv(\"~/Git Repos/bayesclassifier/Data/comments_scores.csv\")\ncomments_scores <- comments_scores %>% rename(message = comment)\n\ndoc_stripped <- simplify_document(comments_scores, message, stop_words)\n\n\n\n\n\n\n\n\n",
+    "created" : 1517882154338.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1307652128",
+    "id" : "D5980478",
+    "lastKnownWriteTime" : 1517902121,
+    "last_content_update" : 1517902121044,
+    "path" : "~/Git Repos/bayesclassifier/train_and_test.R",
+    "project_path" : "train_and_test.R",
+    "properties" : {
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
