@@ -2,16 +2,13 @@ source("requirements.R")
 source("functions.R")
 
 
-comments <- read_delim("Data/toxicity_annotated_comments.tsv", 
+comments <- read_delim("Data/toxicity_annotated_comments.tsv",
                        "\t", escape_double = FALSE, trim_ws = TRUE)
 
-scores <- read_delim("Data/toxicity_annotations.tsv", 
+scores <- read_delim("Data/toxicity_annotations.tsv",
                      "\t", escape_double = FALSE, trim_ws = TRUE)
 
 #############################################################
-
-
-
 
 
 
@@ -24,17 +21,18 @@ subs <- "[^[:alnum:][:space:]'{1}]|NEWLINE_TOKEN"
 comments <- comments %>% mutate(comment = gsub(subs, " ", comment))
 
 scores_collapsed <- scores %>% group_by(rev_id) %>%
-  mutate(score = ifelse(sum(toxicity_score) < 0, -1, 1)) %>%
-  slice(1) 
+  mutate(score = ifelse(sum(toxicity_score) < -1, -1, 1)) %>%
+  slice(1)
 
 scores_multinomial <- scores %>% group_by(rev_id)  %>%
   mutate(score = sum(toxicity_score)) %>%
-  slice(1)  
-  
+  slice(1)
+
 comments_scores <- comments %>% left_join(scores_collapsed) %>%
                                 select(-toxicity_score, -toxicity)
 
-comments_scores_multinomial %>% 
+comments_scores_multinomial <- scores_multinomial %>% left_join(scores_multinomial) %>%
+                               select(-toxicity_score, -toxicity)
 
 
 write.csv(comments_scores, "Data/comments_scores.csv")
@@ -58,4 +56,4 @@ alltokens <- comments %>% select(comment) %>%
 
 
 
-                          
+

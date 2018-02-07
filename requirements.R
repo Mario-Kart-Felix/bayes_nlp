@@ -17,6 +17,9 @@ library(ggthemes)
 library(grid)
 library(gridExtra)
 library(openxlsx)
+library(fuzzyjoin)
+library(knitr)
+library(kableExtra)
 
 # Data Loading ------------------------------------------------------------
 

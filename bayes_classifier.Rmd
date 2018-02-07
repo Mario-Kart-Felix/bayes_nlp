@@ -1,15 +1,61 @@
 ---
-title: "R Notebook"
+title: "Naive Bayes Classification of Wikipedia Comments"
 output: html_notebook
 ---
+```{r setup, include=FALSE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+source("requirements.R")
+```
+This notebook goes over a basic implementation of a Bayesian classifier, which I use here to identify toxic(unconstructive) message board comments on Wikipedia.  Credit to **Matthew Borthwick** for scaping and providing the data.
 
-This note book goes over a basic implementation of a Bayesian classifier, which I use to identify spam e-mails and toxic message board comments.  Much of the methodology is taken from 
+The data are message board comments on Wikipedia that have been manually rated, by several workers, as being hostile/unconstructive(toxic) or good/constructive on a scale of -5 to 5.  For this analysis, I sum all the scores for each message and label everything with a negative score as toxic, and everything with a non-negative score as nontoxic.
 
 
-```{r}
-plot(cars)
+```{r load data}
+
+comments <- read_delim("Data/toxicity_annotated_comments.tsv",
+                       "\t", escape_double = FALSE, trim_ws = TRUE)
+
+scores <- read_delim("Data/toxicity_annotations.tsv",
+                     "\t", escape_double = FALSE, trim_ws = TRUE)
+
+
+
+subs <- "[^[:alnum:][:space:]'{1}]|NEWLINE_TOKEN"
+
+comments <- comments %>% mutate(comment = gsub(subs, " ", comment))
+
+scores_collapsed <- scores %>% group_by(rev_id) %>%
+  mutate(score = ifelse(sum(toxicity_score) < -1, 1, 0)) %>%
+  slice(1)
+
+comments_scores <- comments %>% left_join(scores_collapsed) %>%
+                                select(-toxicity_score, -toxicity)
+
+comments_scores[1:5,] %>% select(message, split, score) %>% kable("html") %>% 
+                kable_styling(full_width = FALSE, position = "left", bootstrap_options = c("striped", "hover"))
+
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+##**Data Cleaning**##
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+The following cleaning steps are applied to the messages:
+
+  * Superflous "stop_words" are removed, on the assumption that they only contribute noise.
+  * Punctuation and other regex matches are removed
+  * The document is "lemmatized" - words with different spelling but the same meaning are all converted to the same string
+  
+The resulting documents are significantly stripped down.  One can try removing some stop words or adjusting their regex pattern if they think relevant information has been lost.
+
+```{r}
+doc_stripped[1:5,] %>% select(token) %>% kable("html") %>% 
+                kable_styling(full_width = FALSE, position = "left", bootstrap_options = c("striped", "hover"))
+
+```
+  
+
+As the name suggests, our naive Bayes classifier is implemented by using Bayes rule and a naive assumption of independence between occurrences of words in a document.  Specifically:
+
+$$P(\textrm{toxic}|\textrm{message}) = \frac{P(\textrm{message}|\textrm{toxic})P(\textrm{toxic})}{P(\textrm{message})} \propto P(\textrm{message}|\textrm{toxic})P(\textrm{toxic}) = P(\textrm{toxic})\prod_{i=1}^nP(\textrm{word}_i|\textrm{toxic})$$ 
+
+...and similarly for non-toxic messages.  The classification rule is simply toxic/nontoxic depending on whether the probability of toxicity is greater/less than the probability of a non-toxic message, conditional on the contents of the message.
