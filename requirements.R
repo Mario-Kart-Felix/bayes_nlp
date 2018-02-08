@@ -20,6 +20,8 @@ library(openxlsx)
 library(fuzzyjoin)
 library(knitr)
 library(kableExtra)
+library(tidytext)
+library(feather)
 
 # Data Loading ------------------------------------------------------------
 

@@ -1,29 +1,32 @@
 ---
 title: "Naive Bayes Classification of Wikipedia Comments"
-output: html_notebook
+output:
+  html_document:
+    code_folding: hide
+  html_notebook: default
 ---
 ```{r setup, include=FALSE, warning = FALSE, message = FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 source("requirements.R")
 ```
-This notebook goes over a basic implementation of a Bayesian classifier, which I use here to identify toxic(unconstructive) message board comments on Wikipedia.  Credit to **Matthew Borthwick** for scaping and providing the data.
+This notebook goes over a basic implementation of a Bayesian classifier, which I use here to identify toxic(unconstructive) message board comments on Wikipedia.  
 
-The data are message board comments on Wikipedia that have been manually rated, by several workers, as being hostile/unconstructive(toxic) or good/constructive on a scale of -5 to 5.  For this analysis, I sum all the scores for each message and label everything with a negative score as toxic, and everything with a non-negative score as nontoxic.
+The data are the full text content of various comments on Wikipedia discussion boards that have been manually rated, by several workers, as being hostile/unconstructive(toxic) or good/constructive on a scale of -5 to 5.  For this analysis, I sum all the scores for each message and label everything with a negative score as toxic, and everything with a non-negative score as nontoxic.
 
 
-```{r load data}
+```{r load data, cache = TRUE}
+
+subs <- "[^[:alnum:][:space:]'{1}]|NEWLINE_TOKEN"
 
 comments <- read_delim("Data/toxicity_annotated_comments.tsv",
-                       "\t", escape_double = FALSE, trim_ws = TRUE)
+                       "\t", escape_double = FALSE, trim_ws = TRUE) %>%
+            mutate(comment = gsub(subs, " ", comment))
 
 scores <- read_delim("Data/toxicity_annotations.tsv",
                      "\t", escape_double = FALSE, trim_ws = TRUE)
 
+doc_stripped <- read_csv("Data/corpus_clean.csv")
 
-
-subs <- "[^[:alnum:][:space:]'{1}]|NEWLINE_TOKEN"
-
-comments <- comments %>% mutate(comment = gsub(subs, " ", comment))
 
 scores_collapsed <- scores %>% group_by(rev_id) %>%
   mutate(score = ifelse(sum(toxicity_score) < -1, 1, 0)) %>%
@@ -31,8 +34,10 @@ scores_collapsed <- scores %>% group_by(rev_id) %>%
 
 comments_scores <- comments %>% left_join(scores_collapsed) %>%
                                 select(-toxicity_score, -toxicity)
+```
 
-comments_scores[1:5,] %>% select(message, split, score) %>% kable("html") %>% 
+```{r}
+comments_scores[1:5,] %>% select(comment, split, score) %>% kable("html") %>% 
                 kable_styling(full_width = FALSE, position = "left", bootstrap_options = c("striped", "hover"))
 
 ```
@@ -44,6 +49,7 @@ The following cleaning steps are applied to the messages:
   * Superflous "stop_words" are removed, on the assumption that they only contribute noise.
   * Punctuation and other regex matches are removed
   * The document is "lemmatized" - words with different spelling but the same meaning are all converted to the same string
+  * Words with very few (<5) occurrences are removed
   
 The resulting documents are significantly stripped down.  One can try removing some stop words or adjusting their regex pattern if they think relevant information has been lost.
 
@@ -54,8 +60,132 @@ doc_stripped[1:5,] %>% select(token) %>% kable("html") %>%
 ```
   
 
-As the name suggests, our naive Bayes classifier is implemented by using Bayes rule and a naive assumption of independence between occurrences of words in a document.  Specifically:
+As the name suggests, our naive Bayes classifier is implemented by using Bayes rule and a naive assumption of independence between occurrences of words in a document.  Specifically, we model each message an an observation from a multinomial distribution where 
 
 $$P(\textrm{toxic}|\textrm{message}) = \frac{P(\textrm{message}|\textrm{toxic})P(\textrm{toxic})}{P(\textrm{message})} \propto P(\textrm{message}|\textrm{toxic})P(\textrm{toxic}) = P(\textrm{toxic})\prod_{i=1}^nP(\textrm{word}_i|\textrm{toxic})$$ 
 
-...and similarly for non-toxic messages.  The classification rule is simply toxic/nontoxic depending on whether the probability of toxicity is greater/less than the probability of a non-toxic message, conditional on the contents of the message.
+...and similarly for non-toxic(good) messages.  The classification rule is simply toxic/nontoxic depending on whether the probability of toxicity is greater/less than the probability of a non-toxic message, conditional on the contents of the message.
+
+$$\textrm{if } P(\textrm{toxic}|\textrm{message}) > P(\textrm{good}|\textrm{message}) \rightarrow \textrm{tag as toxic, else tag as good}$$
+
+Or rather, $$\textrm{if  }\frac{P(\textrm{toxic}|\textrm{message})}{P(\textrm{good}|\textrm{message})} = \frac{P(\textrm{toxic})\prod_{i=1}^nP(\textrm{word}_i|\textrm{toxic})}{P(\textrm{good})\prod_{i=1}^nP(\textrm{word}_i|\textrm{good})} > 1 \rightarrow \textrm{tag as toxic, else tag as good}$$
+
+To prevent arithmetic underflow, we instead calculate the sum of the logs of the probabilities:
+
+$$\textrm{if  }\log{P(\textrm{toxic}|\textrm{message})}-\log{P(\textrm{good}|\textrm{message})} = [\log{P(\textrm{toxic})+\sum_{i=1}^n\log P(\textrm{word}_i|\textrm{toxic})}]-[\log{P(\textrm{good})\sum_{i=1}^n\log P(\textrm{word}_i|\textrm{good})}] > 0 \rightarrow \textrm{tag as toxic, else tag as good } \textbf{(1)}$$
+It remains to decide how to calculate the probabilities.  For this implementation, we will simply use the maximum likelihood estimator, the fraction of observed counts within the toxic and good messages.  Specifically: $$\frac{n_i}{N}, \textrm{where }n_i\textrm{is the observed counts of a particular word in all messages of the same class (toxic or good), and }N\textrm{ is the total word count within that class}$$
+
+For each class, we create a table containing each word, and its associated log probability.  From this, we can calculate the probabilities in **(1)** and obtain our prediction for a given message.  We can calculate the "toxicity" of a word by the ratio of the log probabilities with the toxic probability in the numerator.  
+
+####Top 75 non-toxic words (lowest 75 log probability ratios), sized by counts.  
+```{r, cache = TRUE}
+#Divide into train and test sets
+doc_stripped_scores <- doc_stripped %>% 
+  left_join(comments_scores, by = "rev_id") %>% 
+  select(rev_id, token, score) 
+
+write_feather(doc_stripped_scores, "Data/corpus_clean_scores.feather")
+
+good_train <- doc_stripped_scores %>% 
+  filter(score == 0) %>%
+  sample_frac(0.8)
+
+good_test <- doc_stripped_scores %>% 
+  filter(score == 0) %>% 
+  anti_join(good_train)
+
+toxic_train <- doc_stripped_scores %>% 
+  filter(score == 1) %>%
+  sample_frac(0.8)
+
+toxic_test <- doc_stripped_scores %>% 
+  filter(score == 1) %>%
+  anti_join(toxic_train)
+
+#get probability tables
+allprobs <- get_prob_tables(toxic_train, good_train, token)
+```
+
+```{r}
+#create a single table for convenience in visualization
+fulltable <- inner_join(allprobs[[1]], allprobs[[2]], by = "token") %>% mutate(ratio = logprob_1/logprob_0)
+
+wordcloud2(fulltable %>% 
+             filter(n.x > 1, n.y > 1) %>% 
+             top_n(75, wt = ratio) %>%
+             mutate(rank = rank(n.y)) %>%
+             select(token, rank),
+           size = 0.5,
+           color  = "#2D8DD6",
+           backgroundColor = "#E9EDEF")
+
+```
+
+####Top 75 non-toxic words (lowest 75 log probability ratios), sized by counts.  
+```{r}
+wordcloud2(fulltable %>% 
+             filter(n.x > 1, n.y > 1) %>% 
+             top_n(75, wt = 1/ratio) %>%
+             mutate(rank = rank(n.x), token = gsub("[A-Za-z0-9]", "*!", token)) %>%
+             select(token, rank),
+           size = 0.5,
+           color  = "#2D8DD6",
+           backgroundColor = "#E9EDEF")
+```
+It is as about as vulgar and racist as you can imagine.
+
+###**Testing**
+
+Finally, we obtain predictions for each message and check performance.  The prior probabilities for toxicity and non-toxicity $P(\textrm{toxic}, P(\textrm{good})$ are simply the fraction of all documents that belong to that class.
+```{r}
+p_toxic <- nrow(toxic_train)/(nrow(toxic_train)+nrow(good_train))
+p_good <- 1-p_toxic
+
+preds <- test_model(rbind(toxic_test, good_test), allprobs[[1]], allprobs[[2]], token, rev_id, prior_0 = p_good, prior_1 = p_toxic)
+
+as.matrix(table(preds$score, preds$pred)) %>% kable()
+
+```
+
+The accuracy here is not great, we are correctly flagging toxic messages with about 76% accuracy and some supposedly innocent comments are being flagged as well.  The misclassified comments tend to be more benign.  Their average sum of scores (not simplified to 0-1) tend to be closer to 0 than the correctly classified comments.
+
+Finally, we attempt to improve our accuracy using tf-idf vectorization in Python.  The data is passed between R and Python using the .feather file format.  This is accomplished completely within this notebook.  Results shown below.  
+
+```{python}
+import feather
+import numpy as np
+import pandas as pd
+
+from sklearn import model_selection, metrics, feature_extraction
+from sklearn.pipeline import make_pipeline
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+data = feather.read_dataframe("C:/Users/Daniel/Documents/Git Repos/bayesclassifier/Data/corpus_clean_scores.feather")
+data = data.iloc[0:-1,]
+
+X_train, X_test, y_train, y_test = model_selection.train_test_split(data['token'], data['score'], test_size = 0.2, random_state = 42)
+
+clf= make_pipeline(TfidfVectorizer(), MultinomialNB(alpha=0.01))
+
+clf.fit(X_train, y_train)
+
+y_pred = clf.predict(X_test)
+
+metrics.accuracy_score(y_test, y_pred)
+pd.crosstab(y_pred, y_test)
+
+table_out = pd.concat([X_test, y_test], axis = 1)
+table_out["preds"] = y_pred
+
+feather.write_dataframe(table_out, "C:/Users/Daniel/Documents/Git Repos/bayesclassifier/Data/python_preds_out.feather")
+
+```
+
+```{r}
+pypreds <- read_feather("Data/python_preds_out.feather")
+
+table(pypreds$preds, pypreds$score) %>% as.matrix() %>% kable()
+```
+
+Our accuracy improves appreciably, with an overall ~92% accuracy and ~87% correct classification of toxic-rated comments.

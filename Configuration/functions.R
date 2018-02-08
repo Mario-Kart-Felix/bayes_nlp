@@ -4,13 +4,12 @@ simplify_document <- function(df, string_col, id_col, stop_words = NULL, stop_re
   quo_col <- enquo(string_col)
   id_col <- enquo(id_col)
 
-  #create regex pattern for stemming
+  # create regex pattern for stemming
   stem_pattern = paste(stem_terms, collapse = "|")
 
-  #create group id for reassembling step
-  #remove stop words
-  #remove regex pattern matches
-  #
+  # create group id for reassembling step
+  # remove stop words
+  # remove punctuation
   df <- df %>%
     select(!!id_col, !!quo_col) %>%
     unnest_tokens(token, !!quo_col, token = "words") %>%
@@ -20,10 +19,12 @@ simplify_document <- function(df, string_col, id_col, stop_words = NULL, stop_re
     anti_join(stop_words, by = c("token"="word")) %>%
     mutate(token = gsub("[[:punct:]]", "", token))
 
+  # remove regex pattern matches
   if(!is.null(stop_regex)){
     df <- df %>% regex_anti_join(stop_regex)
   }
 
+  # stemming
   if(!is.null(stem_terms)){
 
     df <- df %>%
@@ -32,6 +33,8 @@ simplify_document <- function(df, string_col, id_col, stop_words = NULL, stop_re
                             str_extract(token, stem_pattern)))
   }
 
+  # lemmatization, file is written to disk, run through a lemmatizer from the command line, and returned
+  # to R as a csv file
   if(lemmatize){
     dir = tempdir()
     infile = paste0(dir, "\\input.txt")
@@ -44,6 +47,7 @@ simplify_document <- function(df, string_col, id_col, stop_words = NULL, stop_re
     file.remove(infile)
   }
 
+  #reassemble document
   df %>%
     left_join(output) %>%
     select(!!id_col, groupid, token_1) %>%
@@ -55,6 +59,7 @@ simplify_document <- function(df, string_col, id_col, stop_words = NULL, stop_re
 
 }
 
+#obtain unique counts of each word, to be performed after simplify_document()
 get_counts_unique <- function(df, message_col){
   message_col <- enquo(message_col)
 
@@ -67,10 +72,11 @@ get_counts_unique <- function(df, message_col){
 
 }
 
+#calculate log probability tables, this is the "training"
 get_prob_tables <- function(group_1, group_0, message_col){
   message_col <- enquo(message_col)
 
-  #word counts for both groups
+  #word counts for both groups(classes)
   counts_1 <- get_counts_unique(group_1, !!message_col)
   counts_0 <- get_counts_unique(group_0, !!message_col)
 
@@ -90,7 +96,7 @@ get_prob_tables <- function(group_1, group_0, message_col){
 
 }
 
-
+#Use probability tables from get_prob_tables() to obtain predictions
 test_model <- function(test_df, table_1, table_0, message_col, id_col, prior_0 = 0.5, prior_1 = 0.5){
   quo_col <- enquo(message_col)
   id_quo <- enquo(id_col)

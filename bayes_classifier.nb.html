@@ -174,89 +174,40 @@ $(document).ready(function () {
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-text-begin -->
-<p>This notebook goes over a basic implementation of a Bayesian classifier, which I use here to identify toxic(unconstructive) message board comments on Wikipedia. Credit to <strong>Matthew Borthwick</strong> for scaping and providing the data.</p>
-<p>The data are message board comments on Wikipedia that have been manually rated, by several workers, as being hostile/unconstructive(toxic) or good/constructive on a scale of -5 to 5. For this analysis, I sum all the scores for each message and label everything with a negative score as toxic, and everything with a non-negative score as nontoxic.</p>
+<p>This notebook goes over a basic implementation of a Bayesian classifier, which I use here to identify toxic(unconstructive) message board comments on Wikipedia.</p>
+<p>The data are the full text content of various comments on Wikipedia discussion boards that have been manually rated, by several workers, as being hostile/unconstructive(toxic) or good/constructive on a scale of -5 to 5. For this analysis, I sum all the scores for each message and label everything with a negative score as toxic, and everything with a non-negative score as nontoxic.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5zdWJzIDwtIFwiW15bOmFsbnVtOl1bOnNwYWNlOl0nezF9XXxORVdMSU5FX1RPS0VOXCJcblxuY29tbWVudHMgPC0gcmVhZF9kZWxpbShcIkRhdGEvdG94aWNpdHlfYW5ub3RhdGVkX2NvbW1lbnRzLnRzdlwiLFxuICAgICAgICAgICAgICAgICAgICAgICBcIlxcdFwiLCBlc2NhcGVfZG91YmxlID0gRkFMU0UsIHRyaW1fd3MgPSBUUlVFKSAlPiVcbiAgICAgICAgICAgIG11dGF0ZShjb21tZW50ID0gZ3N1YihzdWJzLCBcIiBcIiwgY29tbWVudCkpXG5cbnNjb3JlcyA8LSByZWFkX2RlbGltKFwiRGF0YS90b3hpY2l0eV9hbm5vdGF0aW9ucy50c3ZcIixcbiAgICAgICAgICAgICAgICAgICAgIFwiXFx0XCIsIGVzY2FwZV9kb3VibGUgPSBGQUxTRSwgdHJpbV93cyA9IFRSVUUpXG5cbmRvY19zdHJpcHBlZCA8LSByZWFkX2NzdihcIkRhdGEvY29ycHVzX2NsZWFuLmNzdlwiKVxuXG5cbnNjb3Jlc19jb2xsYXBzZWQgPC0gc2NvcmVzICU+JSBncm91cF9ieShyZXZfaWQpICU+JVxuICBtdXRhdGUoc2NvcmUgPSBpZmVsc2Uoc3VtKHRveGljaXR5X3Njb3JlKSA8IC0xLCAxLCAwKSkgJT4lXG4gIHNsaWNlKDEpXG5cbmNvbW1lbnRzX3Njb3JlcyA8LSBjb21tZW50cyAlPiUgbGVmdF9qb2luKHNjb3Jlc19jb2xsYXBzZWQpICU+JVxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzZWxlY3QoLXRveGljaXR5X3Njb3JlLCAtdG94aWNpdHkpXG5gYGAifQ== -->
+<pre class="r"><code>
+subs &lt;- &quot;[^[:alnum:][:space:]'{1}]|NEWLINE_TOKEN&quot;
 
-<!-- rnb-html-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImtuaXRfYXNpcyJdLCJzaXppbmdQb2xpY3kiOltdfX0= -->
+comments &lt;- read_delim(&quot;Data/toxicity_annotated_comments.tsv&quot;,
+                       &quot;\t&quot;, escape_double = FALSE, trim_ws = TRUE) %&gt;%
+            mutate(comment = gsub(subs, &quot; &quot;, comment))
 
-<table class="table table-striped table-hover" style="width: auto !important; ">
-<thead>
-<tr>
-<th style="text-align:left;">
-message
-</th>
-<th style="text-align:left;">
-split
-</th>
-<th style="text-align:right;">
-score
-</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left;">
-This One can make an analogy in mathematical terms by envisioning the distribution of opinions in a population as a Gaussian curve We would then say that the consensus would be a statement that represents the range of opinions within perhaps three standard deviations of the mean opinion sounds arbitrary and ad hoc Does it really belong in n encyclopedia article I don't see that it adds anything useful The paragraph that follows seems much more useful Are there any political theorists out there who can clarify the issues It seems to me that this is an issue that Locke Rousseau de Toqueville and others must have debated SR
-</td>
-<td style="text-align:left;">
-train
-</td>
-<td style="text-align:right;">
-1
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Clarification for you and Zundark's right i should have checked the Wikipedia bugs page first This is a bug in the code that makes wikipedia work it just means that there is a line of code that may have an error as small as an extra space It's analogous in a VERY simplified way to trying to make something bold in HTML and forgetting to put the at the end so you'd see something like this words in bold Instead of this words in bold It's not like a virus that is code somebody deliberately wrote in order to infect your computer and damage files so it won't go around JHK
-</td>
-<td style="text-align:left;">
-train
-</td>
-<td style="text-align:right;">
-1
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Elected or Electoral JHK
-</td>
-<td style="text-align:left;">
-test
-</td>
-<td style="text-align:right;">
-1
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-This is such a fun entry Devotchka I once had a coworker from Korea and not only couldn't she tell the difference between USA English and British English she had trouble telling the difference between different European languages Kind of keeps things in perspective eh Not suprising While I can easily tell the difference between French German Italian Spanish Dutch etc put me in a room with a Chinese Japanese Korean Vietnamese and a Thai speaker and I probably couldn't tell the difference If I saw it written I'd probably have somewhat more luck though SJK Vietnamese has more syllable final consonants than Japanese I think you can tell them apart that way maybe Is this right Juuitchan Someone suggested Heath Robinson and Rube Goldberg as a vocabulary difference It's certainly an interesting parallel but I don't think it really belongs here They were both artists with their own style and both are known on both sides of the pond although their use as descriptive adjectives is split as suggested At any rate they can't quite be considered translations because as an adjective Rube Goldberg is more specific describing an overly complex mechanical device or a complex series of interdependent actions Heath Robinson in contrast is more surrealistic or fantasy oriented LDC As an American I would like to say that to me a bum is a homeless person as much as the butt a flat is an apartment and rubbish certainly is trash Granted I agree that a fag is not a cigarette and underground is not a subway I may do some actual research and come back and fiddle with that list Eean I think Americans certainly understand the use of bum for butt rubbish for trash and to a lesser degree flat for apartment But we don't use those terms much Point to a container for discarded things and an American will say that's a trash can a Brit will say that's a rubbish bin Americans are more likely to use rubbish in the sense of bullshit LDC I deleted the following pair limited Ltd and incorporated since they actually mean different things Incorporated means a corporation limited means a limited liability corporation you can also have unlimited liability corporations and no liability corporations British and Australian also Ltd is roughly equivalent to American LLC SJK I would say 'torch' was much more common than 'pocket lamp' which sounds quite old fashioned 'Flashlight' would be more easily recognised than the latter Yes I'd call it a torch and it would probably be labeled as a flashlight in its manufacturer's packaging IMO 'torch' is colloquial British English The Anome Oh so flashlight is correct British usage My dictionary said Am and the Oxford English Dictionary carried flashlight only in the meaning of photography Then I'll remove the entry again AxelBoldt
-</td>
-<td style="text-align:left;">
-train
-</td>
-<td style="text-align:right;">
-1
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Please relate the ozone hole to increases in cancer and provide figures Otherwise this article will be biased toward the environmentalist anti CFC point of view instead of being neutral Ed Poor
-</td>
-<td style="text-align:left;">
-test
-</td>
-<td style="text-align:right;">
-1
-</td>
-</tr>
-</tbody>
-</table>
+scores &lt;- read_delim(&quot;Data/toxicity_annotations.tsv&quot;,
+                     &quot;\t&quot;, escape_double = FALSE, trim_ws = TRUE)
+
+doc_stripped &lt;- read_csv(&quot;Data/corpus_clean.csv&quot;)
 
 
-<!-- rnb-html-end -->
+scores_collapsed &lt;- scores %&gt;% group_by(rev_id) %&gt;%
+  mutate(score = ifelse(sum(toxicity_score) &lt; -1, 1, 0)) %&gt;%
+  slice(1)
 
+comments_scores &lt;- comments %&gt;% left_join(scores_collapsed) %&gt;%
+                                select(-toxicity_score, -toxicity)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY29tbWVudHNfc2NvcmVzWzE6NSxdICU+JSBzZWxlY3QoY29tbWVudCwgc3BsaXQsIHNjb3JlKSAlPiUga2FibGUoXCJodG1sXCIpICU+JSBcbiAgICAgICAgICAgICAgICBrYWJsZV9zdHlsaW5nKGZ1bGxfd2lkdGggPSBGQUxTRSwgcG9zaXRpb24gPSBcImxlZnRcIiwgYm9vdHN0cmFwX29wdGlvbnMgPSBjKFwic3RyaXBlZFwiLCBcImhvdmVyXCIpKVxuXG5gYGAifQ== -->
+<pre class="r"><code>comments_scores[1:5,] %&gt;% select(comment, split, score) %&gt;% kable(&quot;html&quot;) %&gt;% 
+                kable_styling(full_width = FALSE, position = &quot;left&quot;, bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;))
+</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <div id="data-cleaning" class="section level2">
@@ -266,80 +217,149 @@ test
 <li>Superflous “stop_words” are removed, on the assumption that they only contribute noise.</li>
 <li>Punctuation and other regex matches are removed</li>
 <li>The document is “lemmatized” - words with different spelling but the same meaning are all converted to the same string</li>
+<li>Words with very few (&lt;5) occurrences are removed</li>
 </ul>
 <p>The resulting documents are significantly stripped down. One can try removing some stop words or adjusting their regex pattern if they think relevant information has been lost.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-
-<!-- rnb-html-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImtuaXRfYXNpcyJdLCJzaXppbmdQb2xpY3kiOltdfX0= -->
-
-<table class="table table-striped table-hover" style="width: auto !important; ">
-<thead>
-<tr>
-<th style="text-align:right;">
-rev_id
-</th>
-<th style="text-align:left;">
-token
-</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:right;">
-2232
-</td>
-<td style="text-align:left;">
-analogy mathematical term envision distribution opinion population curve consensus statement represent range opinion standard deviation opinion sound arbitrary ad hoc belong encyclopedia article add paragraph political theorist clarify issue issue locke Rousseau de debate sr
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-4216
-</td>
-<td style="text-align:left;">
-clarification check wikipedia bug page bug code make wikipedia mean line code error extra space analogous simplify bold html forget word bold word bold virus code deliberately write infect computer damage file
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-8953
-</td>
-<td style="text-align:left;">
-elect electoral
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-26547
-</td>
-<td style="text-align:left;">
-fun entry coworker korea difference usa English British English trouble tell difference European language perspective eh easily difference French german Italian Spanish dutch Chinese Japanese Korean Vietnamese Thai speaker difference write luck Vietnamese syllable final consonant Japanese suggest heath robinson rube goldberg vocabulary difference parallel belong artist style pond descriptive adjective split suggest rate consider translation adjective rube goldberg specific describe overly complex mechanical device complex series action heath robinson contrast fantasy oriented American bum homeless person butt flat apartment rubbish trash grant agree fag cigarette underground subway actual research fiddle list American understand bum butt rubbish trash lesser degree flat apartment term container discard American trash brit rubbish bin American rubbish sense bullshit delete pair limit incorporate incorporate mean corporation limit mean limit liability corporation unlimited liability corporation liability corporation British Australian roughly equivalent American llc torch common pocket lamp sound fashion flashlight easily recognise call torch label flashlight manufacturer packaging imo torch colloquial British English anome flashlight correct British usage dictionary oxford English dictionary carry flashlight mean photography remove entry
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-28959
-</td>
-<td style="text-align:left;">
-relate ozone hole increase cancer provide figure article bias environmentalist anti cfc view neutral editor poor
-</td>
-</tr>
-</tbody>
-</table>
-
-
-<!-- rnb-html-end -->
-
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZG9jX3N0cmlwcGVkWzE6NSxdICU+JSBzZWxlY3QodG9rZW4pICU+JSBrYWJsZShcImh0bWxcIikgJT4lIFxuICAgICAgICAgICAgICAgIGthYmxlX3N0eWxpbmcoZnVsbF93aWR0aCA9IEZBTFNFLCBwb3NpdGlvbiA9IFwibGVmdFwiLCBib290c3RyYXBfb3B0aW9ucyA9IGMoXCJzdHJpcGVkXCIsIFwiaG92ZXJcIikpXG5cbmBgYCJ9 -->
+<pre class="r"><code>doc_stripped[1:5,] %&gt;% select(token) %&gt;% kable(&quot;html&quot;) %&gt;% 
+                kable_styling(full_width = FALSE, position = &quot;left&quot;, bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;))
+</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<p>As the name suggests, our naive Bayes classifier is implemented by using Bayes rule and a naive assumption of independence between occurrences of words in a document. Specifically:</p>
+<p>As the name suggests, our naive Bayes classifier is implemented by using Bayes rule and a naive assumption of independence between occurrences of words in a document. Specifically, we model each message an an observation from a multinomial distribution where</p>
 <p><span class="math display">\[P(\textrm{toxic}|\textrm{message}) = \frac{P(\textrm{message}|\textrm{toxic})P(\textrm{toxic})}{P(\textrm{message})} \propto P(\textrm{message}|\textrm{toxic})P(\textrm{toxic}) = P(\textrm{toxic})\prod_{i=1}^nP(\textrm{word}_i|\textrm{toxic})\]</span></p>
-<p>…and similarly for non-toxic messages. The classification rule is simply toxic/nontoxic depending on whether the probability of toxicity is greater/less than the probability of a non-toxic message, conditional on the contents of the message.</p>
+<p>…and similarly for non-toxic(good) messages. The classification rule is simply toxic/nontoxic depending on whether the probability of toxicity is greater/less than the probability of a non-toxic message, conditional on the contents of the message.</p>
+<p><span class="math display">\[\textrm{if } P(\textrm{toxic}|\textrm{message}) &gt; P(\textrm{good}|\textrm{message}) \rightarrow \textrm{tag as toxic, else tag as good}\]</span></p>
+<p>Or rather, <span class="math display">\[\textrm{if  }\frac{P(\textrm{toxic}|\textrm{message})}{P(\textrm{good}|\textrm{message})} = \frac{P(\textrm{toxic})\prod_{i=1}^nP(\textrm{word}_i|\textrm{toxic})}{P(\textrm{good})\prod_{i=1}^nP(\textrm{word}_i|\textrm{good})} &gt; 1 \rightarrow \textrm{tag as toxic, else tag as good}\]</span></p>
+<p>To prevent arithmetic underflow, we instead calculate the sum of the logs of the probabilities:</p>
+<p><span class="math display">\[\textrm{if  }\log{P(\textrm{toxic}|\textrm{message})}-\log{P(\textrm{good}|\textrm{message})} = [\log{P(\textrm{toxic})+\sum_{i=1}^n\log P(\textrm{word}_i|\textrm{toxic})}]-[\log{P(\textrm{good})\sum_{i=1}^n\log P(\textrm{word}_i|\textrm{good})}] &gt; 0 \rightarrow \textrm{tag as toxic, else tag as good } \textbf{(1)}\]</span> It remains to decide how to calculate the probabilities. For this implementation, we will simply use the maximum likelihood estimator, the fraction of observed counts within the toxic and good messages. Specifically: <span class="math display">\[\frac{n_i}{N}, \textrm{where }n_i\textrm{is the observed counts of a particular word in all messages of the same class (toxic or good), and }N\textrm{ is the total word count within that class}\]</span></p>
+<p>For each class, we create a table containing each word, and its associated log probability. From this, we can calculate the probabilities in <strong>(1)</strong> and obtain our prediction for a given message. We can calculate the “toxicity” of a word by the ratio of the log probabilities with the toxic probability in the numerator.</p>
+<div id="top-75-non-toxic-words-lowest-75-log-probability-ratios-sized-by-counts." class="section level4">
+<h4>Top 75 non-toxic words (lowest 75 log probability ratios), sized by counts.</h4>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxud3JpdGUuZmVhdGhlcihkb2Nfc3RyaXBwZWRfc2NvcmVzLCBcIkRhdGEvY29ycHVzX2NsZWFuX3Njb3Jlcy5mZWF0aGVyXCIpXG5cbmBgYCJ9 -->
+<pre class="r"><code>write.feather(doc_stripped_scores, &quot;Data/corpus_clean_scores.feather&quot;)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gd3JpdGUuZmVhdGhlcihkb2Nfc3RyaXBwZWRfc2NvcmVzLCBcIkRhdGEvY29ycHVzX2NsZWFuX3Njb3Jlcy5mZWF0aGVyXCIpIDogXG4gIGNvdWxkIG5vdCBmaW5kIGZ1bmN0aW9uIFwid3JpdGUuZmVhdGhlclwiXG4ifQ== -->
+<pre><code>Error in write.feather(doc_stripped_scores, &quot;Data/corpus_clean_scores.feather&quot;) : 
+  could not find function &quot;write.feather&quot;</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2NyZWF0ZSBhIHNpbmdsZSB0YWJsZSBmb3IgY29udmVuaWVuY2UgaW4gdmlzdWFsaXphdGlvblxuZnVsbHRhYmxlIDwtIGlubmVyX2pvaW4oYWxscHJvYnNbWzFdXSwgYWxscHJvYnNbWzJdXSwgYnkgPSBcInRva2VuXCIpICU+JSBtdXRhdGUocmF0aW8gPSBsb2dwcm9iXzEvbG9ncHJvYl8wKVxuXG53b3JkY2xvdWQyKGZ1bGx0YWJsZSAlPiUgXG4gICAgICAgICAgICAgZmlsdGVyKG4ueCA+IDEsIG4ueSA+IDEpICU+JSBcbiAgICAgICAgICAgICB0b3Bfbig3NSwgd3QgPSByYXRpbykgJT4lXG4gICAgICAgICAgICAgbXV0YXRlKHJhbmsgPSByYW5rKG4ueSkpICU+JVxuICAgICAgICAgICAgIHNlbGVjdCh0b2tlbiwgcmFuayksXG4gICAgICAgICAgIHNpemUgPSAwLjUsXG4gICAgICAgICAgIGNvbG9yICA9IFwiIzJEOERENlwiLFxuICAgICAgICAgICBiYWNrZ3JvdW5kQ29sb3IgPSBcIiNFOUVERUZcIilcblxuYGBgIn0= -->
+<pre class="r"><code>#create a single table for convenience in visualization
+fulltable &lt;- inner_join(allprobs[[1]], allprobs[[2]], by = &quot;token&quot;) %&gt;% mutate(ratio = logprob_1/logprob_0)
+
+wordcloud2(fulltable %&gt;% 
+             filter(n.x &gt; 1, n.y &gt; 1) %&gt;% 
+             top_n(75, wt = ratio) %&gt;%
+             mutate(rank = rank(n.y)) %&gt;%
+             select(token, rank),
+           size = 0.5,
+           color  = &quot;#2D8DD6&quot;,
+           backgroundColor = &quot;#E9EDEF&quot;)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="top-75-non-toxic-words-lowest-75-log-probability-ratios-sized-by-counts.-1" class="section level4">
+<h4>Top 75 non-toxic words (lowest 75 log probability ratios), sized by counts.</h4>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxud29yZGNsb3VkMihmdWxsdGFibGUgJT4lIFxuICAgICAgICAgICAgIGZpbHRlcihuLnggPiAxLCBuLnkgPiAxKSAlPiUgXG4gICAgICAgICAgICAgdG9wX24oNzUsIHd0ID0gMS9yYXRpbykgJT4lXG4gICAgICAgICAgICAgbXV0YXRlKHJhbmsgPSByYW5rKG4ueCksIHRva2VuID0gZ3N1YihcIltBLVphLXowLTldXCIsIFwiKiFcIiwgdG9rZW4pKSAlPiVcbiAgICAgICAgICAgICBzZWxlY3QodG9rZW4sIHJhbmspLFxuICAgICAgICAgICBzaXplID0gMC41LFxuICAgICAgICAgICBjb2xvciAgPSBcIiMyRDhERDZcIixcbiAgICAgICAgICAgYmFja2dyb3VuZENvbG9yID0gXCIjRTlFREVGXCIpXG5gYGAifQ== -->
+<pre class="r"><code>wordcloud2(fulltable %&gt;% 
+             filter(n.x &gt; 1, n.y &gt; 1) %&gt;% 
+             top_n(75, wt = 1/ratio) %&gt;%
+             mutate(rank = rank(n.x), token = gsub(&quot;[A-Za-z0-9]&quot;, &quot;*!&quot;, token)) %&gt;%
+             select(token, rank),
+           size = 0.5,
+           color  = &quot;#2D8DD6&quot;,
+           backgroundColor = &quot;#E9EDEF&quot;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>It is as about as vulgar and racist as you can imagine.</p>
+</div>
+<div id="testing" class="section level3">
+<h3><strong>Testing</strong></h3>
+<p>Finally, we obtain predictions for each message and check performance. The prior probabilities for toxicity and non-toxicity <span class="math inline">\(P(\textrm{toxic}, P(\textrm{good})\)</span> are simply the fraction of all documents that belong to that class.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucF90b3hpYyA8LSBucm93KHRveGljX3RyYWluKS8obnJvdyh0b3hpY190cmFpbikrbnJvdyhnb29kX3RyYWluKSlcbnBfZ29vZCA8LSAxLXBfdG94aWNcblxucHJlZHMgPC0gdGVzdF9tb2RlbChyYmluZCh0b3hpY190ZXN0LCBnb29kX3Rlc3QpLCBhbGxwcm9ic1tbMV1dLCBhbGxwcm9ic1tbMl1dLCB0b2tlbiwgcmV2X2lkLCBwcmlvcl8wID0gcF9nb29kLCBwcmlvcl8xID0gcF90b3hpYylcblxuYXMubWF0cml4KHRhYmxlKHByZWRzJHNjb3JlLCBwcmVkcyRwcmVkKSkgJT4lIGthYmxlKClcblxuYGBgIn0= -->
+<pre class="r"><code>p_toxic &lt;- nrow(toxic_train)/(nrow(toxic_train)+nrow(good_train))
+p_good &lt;- 1-p_toxic
+
+preds &lt;- test_model(rbind(toxic_test, good_test), allprobs[[1]], allprobs[[2]], token, rev_id, prior_0 = p_good, prior_1 = p_toxic)
+
+as.matrix(table(preds$score, preds$pred)) %&gt;% kable()
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>The accuracy here is not great, we are correctly flagging toxic messages with about 76% accuracy and some supposedly innocent comments are being flagged as well. The misclassified comments tend to be more benign. Their average sum of scores (not simplified to 0-1) tend to be closer to 0 than the correctly classified comments.</p>
+<p>Finally, we attempt to improve our accuracy using tf-idf vectorization in Python. The data is passed between R and Python using the .feather file format. This is accomplished completely within this notebook. Results shown below.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG5pbXBvcnQgZmVhdGhlclxuaW1wb3J0IG51bXB5IGFzIG5wXG5pbXBvcnQgcGFuZGFzIGFzIHBkXG5cbmZyb20gc2tsZWFybiBpbXBvcnQgbW9kZWxfc2VsZWN0aW9uLCBtZXRyaWNzLCBmZWF0dXJlX2V4dHJhY3Rpb25cbmZyb20gc2tsZWFybi5waXBlbGluZSBpbXBvcnQgbWFrZV9waXBlbGluZVxuZnJvbSBza2xlYXJuLm5haXZlX2JheWVzIGltcG9ydCBNdWx0aW5vbWlhbE5CXG5mcm9tIHNrbGVhcm4uZmVhdHVyZV9leHRyYWN0aW9uLnRleHQgaW1wb3J0IFRmaWRmVmVjdG9yaXplclxuXG5kYXRhID0gZmVhdGhlci5yZWFkX2RhdGFmcmFtZShcIkM6L1VzZXJzL0RhbmllbC9Eb2N1bWVudHMvR2l0IFJlcG9zL2JheWVzY2xhc3NpZmllci9EYXRhL2NvcnB1c19jbGVhbl9zY29yZXMuZmVhdGhlclwiKVxuZGF0YSA9IGRhdGEuaWxvY1swOi0xLF1cblxuWF90cmFpbiwgWF90ZXN0LCB5X3RyYWluLCB5X3Rlc3QgPSBtb2RlbF9zZWxlY3Rpb24udHJhaW5fdGVzdF9zcGxpdChkYXRhWyd0b2tlbiddLCBkYXRhWydzY29yZSddLCB0ZXN0X3NpemUgPSAwLjIsIHJhbmRvbV9zdGF0ZSA9IDQyKVxuXG5jbGY9IG1ha2VfcGlwZWxpbmUoVGZpZGZWZWN0b3JpemVyKCksIE11bHRpbm9taWFsTkIoYWxwaGE9MC4wMSkpXG5cbmNsZi5maXQoWF90cmFpbiwgeV90cmFpbilcblxueV9wcmVkID0gY2xmLnByZWRpY3QoWF90ZXN0KVxuXG5tZXRyaWNzLmFjY3VyYWN5X3Njb3JlKHlfdGVzdCwgeV9wcmVkKVxucGQuY3Jvc3N0YWIoeV9wcmVkLCB5X3Rlc3QpXG5cbnRhYmxlX291dCA9IHBkLmNvbmNhdChbWF90ZXN0LCB5X3Rlc3RdLCBheGlzID0gMSlcbnRhYmxlX291dFtcInByZWRzXCJdID0geV9wcmVkXG5cbmZlYXRoZXIud3JpdGVfZGF0YWZyYW1lKHRhYmxlX291dCwgXCJDOi9Vc2Vycy9EYW5pZWwvRG9jdW1lbnRzL0dpdCBSZXBvcy9iYXllc2NsYXNzaWZpZXIvRGF0YS9weXRob25fcHJlZHNfb3V0LmZlYXRoZXJcIilcblxuYGBgIn0= -->
+<pre class="python"><code>import feather
+import numpy as np
+import pandas as pd
+
+from sklearn import model_selection, metrics, feature_extraction
+from sklearn.pipeline import make_pipeline
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+data = feather.read_dataframe(&quot;C:/Users/Daniel/Documents/Git Repos/bayesclassifier/Data/corpus_clean_scores.feather&quot;)
+data = data.iloc[0:-1,]
+
+X_train, X_test, y_train, y_test = model_selection.train_test_split(data['token'], data['score'], test_size = 0.2, random_state = 42)
+
+clf= make_pipeline(TfidfVectorizer(), MultinomialNB(alpha=0.01))
+
+clf.fit(X_train, y_train)
+
+y_pred = clf.predict(X_test)
+
+metrics.accuracy_score(y_test, y_pred)
+pd.crosstab(y_pred, y_test)
+
+table_out = pd.concat([X_test, y_test], axis = 1)
+table_out[&quot;preds&quot;] = y_pred
+
+feather.write_dataframe(table_out, &quot;C:/Users/Daniel/Documents/Git Repos/bayesclassifier/Data/python_preds_out.feather&quot;)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudGFibGUocHlwcmVkcyRwcmVkcywgcHlwcmVkcyRzY29yZSlcblxuYGBgIn0= -->
+<pre class="r"><code>table(pypreds$preds, pypreds$score)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiICAgXG4gICAgICAgIDAgICAgIDFcbiAgMCAyNjQ3MiAgMjI2OVxuICAxICAgMzk2ICAyNTU2XG4ifQ== -->
+<pre><code>   
+        0     1
+  0 26472  2269
+  1   396  2556</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Our accuracy improves appreciably, with an overall ~92% accuracy and ~87% correct classification of toxic-rated comments.</p>
 <!-- rnb-text-end -->
 </div>
+</div>
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIk5haXZlIEJheWVzIENsYXNzaWZpY2F0aW9uIG9mIFdpa2lwZWRpYSBDb21tZW50cyINCm91dHB1dDogaHRtbF9ub3RlYm9vaw0KLS0tDQpgYGB7ciBzZXR1cCwgaW5jbHVkZT1GQUxTRSwgd2FybmluZyA9IEZBTFNFLCBtZXNzYWdlID0gRkFMU0V9DQprbml0cjo6b3B0c19jaHVuayRzZXQoZWNobyA9IEZBTFNFLCB3YXJuaW5nID0gRkFMU0UsIG1lc3NhZ2UgPSBGQUxTRSkNCnNvdXJjZSgicmVxdWlyZW1lbnRzLlIiKQ0KYGBgDQpUaGlzIG5vdGVib29rIGdvZXMgb3ZlciBhIGJhc2ljIGltcGxlbWVudGF0aW9uIG9mIGEgQmF5ZXNpYW4gY2xhc3NpZmllciwgd2hpY2ggSSB1c2UgaGVyZSB0byBpZGVudGlmeSB0b3hpYyh1bmNvbnN0cnVjdGl2ZSkgbWVzc2FnZSBib2FyZCBjb21tZW50cyBvbiBXaWtpcGVkaWEuICBDcmVkaXQgdG8gKipNYXR0aGV3IEJvcnRod2ljayoqIGZvciBzY2FwaW5nIGFuZCBwcm92aWRpbmcgdGhlIGRhdGEuDQoNClRoZSBkYXRhIGFyZSBtZXNzYWdlIGJvYXJkIGNvbW1lbnRzIG9uIFdpa2lwZWRpYSB0aGF0IGhhdmUgYmVlbiBtYW51YWxseSByYXRlZCwgYnkgc2V2ZXJhbCB3b3JrZXJzLCBhcyBiZWluZyBob3N0aWxlL3VuY29uc3RydWN0aXZlKHRveGljKSBvciBnb29kL2NvbnN0cnVjdGl2ZSBvbiBhIHNjYWxlIG9mIC01IHRvIDUuICBGb3IgdGhpcyBhbmFseXNpcywgSSBzdW0gYWxsIHRoZSBzY29yZXMgZm9yIGVhY2ggbWVzc2FnZSBhbmQgbGFiZWwgZXZlcnl0aGluZyB3aXRoIGEgbmVnYXRpdmUgc2NvcmUgYXMgdG94aWMsIGFuZCBldmVyeXRoaW5nIHdpdGggYSBub24tbmVnYXRpdmUgc2NvcmUgYXMgbm9udG94aWMuDQoNCg0KYGBge3IgbG9hZCBkYXRhfQ0KDQpjb21tZW50cyA8LSByZWFkX2RlbGltKCJEYXRhL3RveGljaXR5X2Fubm90YXRlZF9jb21tZW50cy50c3YiLA0KICAgICAgICAgICAgICAgICAgICAgICAiXHQiLCBlc2NhcGVfZG91YmxlID0gRkFMU0UsIHRyaW1fd3MgPSBUUlVFKQ0KDQpzY29yZXMgPC0gcmVhZF9kZWxpbSgiRGF0YS90b3hpY2l0eV9hbm5vdGF0aW9ucy50c3YiLA0KICAgICAgICAgICAgICAgICAgICAgIlx0IiwgZXNjYXBlX2RvdWJsZSA9IEZBTFNFLCB0cmltX3dzID0gVFJVRSkNCg0KDQoNCnN1YnMgPC0gIlteWzphbG51bTpdWzpzcGFjZTpdJ3sxfV18TkVXTElORV9UT0tFTiINCg0KY29tbWVudHMgPC0gY29tbWVudHMgJT4lIG11dGF0ZShjb21tZW50ID0gZ3N1YihzdWJzLCAiICIsIGNvbW1lbnQpKQ0KDQpzY29yZXNfY29sbGFwc2VkIDwtIHNjb3JlcyAlPiUgZ3JvdXBfYnkocmV2X2lkKSAlPiUNCiAgbXV0YXRlKHNjb3JlID0gaWZlbHNlKHN1bSh0b3hpY2l0eV9zY29yZSkgPCAtMSwgMSwgMCkpICU+JQ0KICBzbGljZSgxKQ0KDQpjb21tZW50c19zY29yZXMgPC0gY29tbWVudHMgJT4lIGxlZnRfam9pbihzY29yZXNfY29sbGFwc2VkKSAlPiUNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc2VsZWN0KC10b3hpY2l0eV9zY29yZSwgLXRveGljaXR5KQ0KDQpjb21tZW50c19zY29yZXNbMTo1LF0gJT4lIHNlbGVjdChtZXNzYWdlLCBzcGxpdCwgc2NvcmUpICU+JSBrYWJsZSgiaHRtbCIpICU+JSANCiAgICAgICAgICAgICAgICBrYWJsZV9zdHlsaW5nKGZ1bGxfd2lkdGggPSBGQUxTRSwgcG9zaXRpb24gPSAibGVmdCIsIGJvb3RzdHJhcF9vcHRpb25zID0gYygic3RyaXBlZCIsICJob3ZlciIpKQ0KDQpgYGANCg0KIyMqKkRhdGEgQ2xlYW5pbmcqKiMjDQoNClRoZSBmb2xsb3dpbmcgY2xlYW5pbmcgc3RlcHMgYXJlIGFwcGxpZWQgdG8gdGhlIG1lc3NhZ2VzOg0KDQogICogU3VwZXJmbG91cyAic3RvcF93b3JkcyIgYXJlIHJlbW92ZWQsIG9uIHRoZSBhc3N1bXB0aW9uIHRoYXQgdGhleSBvbmx5IGNvbnRyaWJ1dGUgbm9pc2UuDQogICogUHVuY3R1YXRpb24gYW5kIG90aGVyIHJlZ2V4IG1hdGNoZXMgYXJlIHJlbW92ZWQNCiAgKiBUaGUgZG9jdW1lbnQgaXMgImxlbW1hdGl6ZWQiIC0gd29yZHMgd2l0aCBkaWZmZXJlbnQgc3BlbGxpbmcgYnV0IHRoZSBzYW1lIG1lYW5pbmcgYXJlIGFsbCBjb252ZXJ0ZWQgdG8gdGhlIHNhbWUgc3RyaW5nDQogIA0KVGhlIHJlc3VsdGluZyBkb2N1bWVudHMgYXJlIHNpZ25pZmljYW50bHkgc3RyaXBwZWQgZG93bi4gIE9uZSBjYW4gdHJ5IHJlbW92aW5nIHNvbWUgc3RvcCB3b3JkcyBvciBhZGp1c3RpbmcgdGhlaXIgcmVnZXggcGF0dGVybiBpZiB0aGV5IHRoaW5rIHJlbGV2YW50IGluZm9ybWF0aW9uIGhhcyBiZWVuIGxvc3QuDQoNCmBgYHtyfQ0KZG9jX3N0cmlwcGVkWzE6NSxdICU+JSBzZWxlY3QodG9rZW4pICU+JSBrYWJsZSgiaHRtbCIpICU+JSANCiAgICAgICAgICAgICAgICBrYWJsZV9zdHlsaW5nKGZ1bGxfd2lkdGggPSBGQUxTRSwgcG9zaXRpb24gPSAibGVmdCIsIGJvb3RzdHJhcF9vcHRpb25zID0gYygic3RyaXBlZCIsICJob3ZlciIpKQ0KDQpgYGANCiAgDQoNCkFzIHRoZSBuYW1lIHN1Z2dlc3RzLCBvdXIgbmFpdmUgQmF5ZXMgY2xhc3NpZmllciBpcyBpbXBsZW1lbnRlZCBieSB1c2luZyBCYXllcyBydWxlIGFuZCBhIG5haXZlIGFzc3VtcHRpb24gb2YgaW5kZXBlbmRlbmNlIGJldHdlZW4gb2NjdXJyZW5jZXMgb2Ygd29yZHMgaW4gYSBkb2N1bWVudC4gIFNwZWNpZmljYWxseToNCg0KJCRQKFx0ZXh0cm17dG94aWN9fFx0ZXh0cm17bWVzc2FnZX0pID0gXGZyYWN7UChcdGV4dHJte21lc3NhZ2V9fFx0ZXh0cm17dG94aWN9KVAoXHRleHRybXt0b3hpY30pfXtQKFx0ZXh0cm17bWVzc2FnZX0pfSBccHJvcHRvIFAoXHRleHRybXttZXNzYWdlfXxcdGV4dHJte3RveGljfSlQKFx0ZXh0cm17dG94aWN9KSA9IFAoXHRleHRybXt0b3hpY30pXHByb2Rfe2k9MX1eblAoXHRleHRybXt3b3JkfV9pfFx0ZXh0cm17dG94aWN9KSQkIA0KDQouLi5hbmQgc2ltaWxhcmx5IGZvciBub24tdG94aWMgbWVzc2FnZXMuICBUaGUgY2xhc3NpZmljYXRpb24gcnVsZSBpcyBzaW1wbHkgdG94aWMvbm9udG94aWMgZGVwZW5kaW5nIG9uIHdoZXRoZXIgdGhlIHByb2JhYmlsaXR5IG9mIHRveGljaXR5IGlzIGdyZWF0ZXIvbGVzcyB0aGFuIHRoZSBwcm9iYWJpbGl0eSBvZiBhIG5vbi10b3hpYyBtZXNzYWdlLCBjb25kaXRpb25hbCBvbiB0aGUgY29udGVudHMgb2YgdGhlIG1lc3NhZ2UuDQo=</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIk5haXZlIEJheWVzIENsYXNzaWZpY2F0aW9uIG9mIFdpa2lwZWRpYSBDb21tZW50cyINCm91dHB1dDoNCiAgaHRtbF9kb2N1bWVudDoNCiAgICBjb2RlX2ZvbGRpbmc6IGhpZGUNCiAgaHRtbF9ub3RlYm9vazogZGVmYXVsdA0KLS0tDQpgYGB7ciBzZXR1cCwgaW5jbHVkZT1GQUxTRSwgd2FybmluZyA9IEZBTFNFLCBtZXNzYWdlID0gRkFMU0V9DQprbml0cjo6b3B0c19jaHVuayRzZXQoZWNobyA9IEZBTFNFLCB3YXJuaW5nID0gRkFMU0UsIG1lc3NhZ2UgPSBGQUxTRSkNCnNvdXJjZSgicmVxdWlyZW1lbnRzLlIiKQ0KYGBgDQpUaGlzIG5vdGVib29rIGdvZXMgb3ZlciBhIGJhc2ljIGltcGxlbWVudGF0aW9uIG9mIGEgQmF5ZXNpYW4gY2xhc3NpZmllciwgd2hpY2ggSSB1c2UgaGVyZSB0byBpZGVudGlmeSB0b3hpYyh1bmNvbnN0cnVjdGl2ZSkgbWVzc2FnZSBib2FyZCBjb21tZW50cyBvbiBXaWtpcGVkaWEuICANCg0KVGhlIGRhdGEgYXJlIHRoZSBmdWxsIHRleHQgY29udGVudCBvZiB2YXJpb3VzIGNvbW1lbnRzIG9uIFdpa2lwZWRpYSBkaXNjdXNzaW9uIGJvYXJkcyB0aGF0IGhhdmUgYmVlbiBtYW51YWxseSByYXRlZCwgYnkgc2V2ZXJhbCB3b3JrZXJzLCBhcyBiZWluZyBob3N0aWxlL3VuY29uc3RydWN0aXZlKHRveGljKSBvciBnb29kL2NvbnN0cnVjdGl2ZSBvbiBhIHNjYWxlIG9mIC01IHRvIDUuICBGb3IgdGhpcyBhbmFseXNpcywgSSBzdW0gYWxsIHRoZSBzY29yZXMgZm9yIGVhY2ggbWVzc2FnZSBhbmQgbGFiZWwgZXZlcnl0aGluZyB3aXRoIGEgbmVnYXRpdmUgc2NvcmUgYXMgdG94aWMsIGFuZCBldmVyeXRoaW5nIHdpdGggYSBub24tbmVnYXRpdmUgc2NvcmUgYXMgbm9udG94aWMuDQoNCg0KYGBge3IgbG9hZCBkYXRhLCBjYWNoZSA9IFRSVUV9DQoNCnN1YnMgPC0gIlteWzphbG51bTpdWzpzcGFjZTpdJ3sxfV18TkVXTElORV9UT0tFTiINCg0KY29tbWVudHMgPC0gcmVhZF9kZWxpbSgiRGF0YS90b3hpY2l0eV9hbm5vdGF0ZWRfY29tbWVudHMudHN2IiwNCiAgICAgICAgICAgICAgICAgICAgICAgIlx0IiwgZXNjYXBlX2RvdWJsZSA9IEZBTFNFLCB0cmltX3dzID0gVFJVRSkgJT4lDQogICAgICAgICAgICBtdXRhdGUoY29tbWVudCA9IGdzdWIoc3VicywgIiAiLCBjb21tZW50KSkNCg0Kc2NvcmVzIDwtIHJlYWRfZGVsaW0oIkRhdGEvdG94aWNpdHlfYW5ub3RhdGlvbnMudHN2IiwNCiAgICAgICAgICAgICAgICAgICAgICJcdCIsIGVzY2FwZV9kb3VibGUgPSBGQUxTRSwgdHJpbV93cyA9IFRSVUUpDQoNCmRvY19zdHJpcHBlZCA8LSByZWFkX2NzdigiRGF0YS9jb3JwdXNfY2xlYW4uY3N2IikNCg0KDQpzY29yZXNfY29sbGFwc2VkIDwtIHNjb3JlcyAlPiUgZ3JvdXBfYnkocmV2X2lkKSAlPiUNCiAgbXV0YXRlKHNjb3JlID0gaWZlbHNlKHN1bSh0b3hpY2l0eV9zY29yZSkgPCAtMSwgMSwgMCkpICU+JQ0KICBzbGljZSgxKQ0KDQpjb21tZW50c19zY29yZXMgPC0gY29tbWVudHMgJT4lIGxlZnRfam9pbihzY29yZXNfY29sbGFwc2VkKSAlPiUNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc2VsZWN0KC10b3hpY2l0eV9zY29yZSwgLXRveGljaXR5KQ0KYGBgDQoNCmBgYHtyfQ0KY29tbWVudHNfc2NvcmVzWzE6NSxdICU+JSBzZWxlY3QoY29tbWVudCwgc3BsaXQsIHNjb3JlKSAlPiUga2FibGUoImh0bWwiKSAlPiUgDQogICAgICAgICAgICAgICAga2FibGVfc3R5bGluZyhmdWxsX3dpZHRoID0gRkFMU0UsIHBvc2l0aW9uID0gImxlZnQiLCBib290c3RyYXBfb3B0aW9ucyA9IGMoInN0cmlwZWQiLCAiaG92ZXIiKSkNCg0KYGBgDQoNCiMjKipEYXRhIENsZWFuaW5nKiojIw0KDQpUaGUgZm9sbG93aW5nIGNsZWFuaW5nIHN0ZXBzIGFyZSBhcHBsaWVkIHRvIHRoZSBtZXNzYWdlczoNCg0KICAqIFN1cGVyZmxvdXMgInN0b3Bfd29yZHMiIGFyZSByZW1vdmVkLCBvbiB0aGUgYXNzdW1wdGlvbiB0aGF0IHRoZXkgb25seSBjb250cmlidXRlIG5vaXNlLg0KICAqIFB1bmN0dWF0aW9uIGFuZCBvdGhlciByZWdleCBtYXRjaGVzIGFyZSByZW1vdmVkDQogICogVGhlIGRvY3VtZW50IGlzICJsZW1tYXRpemVkIiAtIHdvcmRzIHdpdGggZGlmZmVyZW50IHNwZWxsaW5nIGJ1dCB0aGUgc2FtZSBtZWFuaW5nIGFyZSBhbGwgY29udmVydGVkIHRvIHRoZSBzYW1lIHN0cmluZw0KICAqIFdvcmRzIHdpdGggdmVyeSBmZXcgKDw1KSBvY2N1cnJlbmNlcyBhcmUgcmVtb3ZlZA0KICANClRoZSByZXN1bHRpbmcgZG9jdW1lbnRzIGFyZSBzaWduaWZpY2FudGx5IHN0cmlwcGVkIGRvd24uICBPbmUgY2FuIHRyeSByZW1vdmluZyBzb21lIHN0b3Agd29yZHMgb3IgYWRqdXN0aW5nIHRoZWlyIHJlZ2V4IHBhdHRlcm4gaWYgdGhleSB0aGluayByZWxldmFudCBpbmZvcm1hdGlvbiBoYXMgYmVlbiBsb3N0Lg0KDQpgYGB7cn0NCmRvY19zdHJpcHBlZFsxOjUsXSAlPiUgc2VsZWN0KHRva2VuKSAlPiUga2FibGUoImh0bWwiKSAlPiUgDQogICAgICAgICAgICAgICAga2FibGVfc3R5bGluZyhmdWxsX3dpZHRoID0gRkFMU0UsIHBvc2l0aW9uID0gImxlZnQiLCBib290c3RyYXBfb3B0aW9ucyA9IGMoInN0cmlwZWQiLCAiaG92ZXIiKSkNCg0KYGBgDQogIA0KDQpBcyB0aGUgbmFtZSBzdWdnZXN0cywgb3VyIG5haXZlIEJheWVzIGNsYXNzaWZpZXIgaXMgaW1wbGVtZW50ZWQgYnkgdXNpbmcgQmF5ZXMgcnVsZSBhbmQgYSBuYWl2ZSBhc3N1bXB0aW9uIG9mIGluZGVwZW5kZW5jZSBiZXR3ZWVuIG9jY3VycmVuY2VzIG9mIHdvcmRzIGluIGEgZG9jdW1lbnQuICBTcGVjaWZpY2FsbHksIHdlIG1vZGVsIGVhY2ggbWVzc2FnZSBhbiBhbiBvYnNlcnZhdGlvbiBmcm9tIGEgbXVsdGlub21pYWwgZGlzdHJpYnV0aW9uIHdoZXJlIA0KDQokJFAoXHRleHRybXt0b3hpY318XHRleHRybXttZXNzYWdlfSkgPSBcZnJhY3tQKFx0ZXh0cm17bWVzc2FnZX18XHRleHRybXt0b3hpY30pUChcdGV4dHJte3RveGljfSl9e1AoXHRleHRybXttZXNzYWdlfSl9IFxwcm9wdG8gUChcdGV4dHJte21lc3NhZ2V9fFx0ZXh0cm17dG94aWN9KVAoXHRleHRybXt0b3hpY30pID0gUChcdGV4dHJte3RveGljfSlccHJvZF97aT0xfV5uUChcdGV4dHJte3dvcmR9X2l8XHRleHRybXt0b3hpY30pJCQgDQoNCi4uLmFuZCBzaW1pbGFybHkgZm9yIG5vbi10b3hpYyhnb29kKSBtZXNzYWdlcy4gIFRoZSBjbGFzc2lmaWNhdGlvbiBydWxlIGlzIHNpbXBseSB0b3hpYy9ub250b3hpYyBkZXBlbmRpbmcgb24gd2hldGhlciB0aGUgcHJvYmFiaWxpdHkgb2YgdG94aWNpdHkgaXMgZ3JlYXRlci9sZXNzIHRoYW4gdGhlIHByb2JhYmlsaXR5IG9mIGEgbm9uLXRveGljIG1lc3NhZ2UsIGNvbmRpdGlvbmFsIG9uIHRoZSBjb250ZW50cyBvZiB0aGUgbWVzc2FnZS4NCg0KJCRcdGV4dHJte2lmIH0gUChcdGV4dHJte3RveGljfXxcdGV4dHJte21lc3NhZ2V9KSA+IFAoXHRleHRybXtnb29kfXxcdGV4dHJte21lc3NhZ2V9KSBccmlnaHRhcnJvdyBcdGV4dHJte3RhZyBhcyB0b3hpYywgZWxzZSB0YWcgYXMgZ29vZH0kJA0KDQpPciByYXRoZXIsICQkXHRleHRybXtpZiAgfVxmcmFje1AoXHRleHRybXt0b3hpY318XHRleHRybXttZXNzYWdlfSl9e1AoXHRleHRybXtnb29kfXxcdGV4dHJte21lc3NhZ2V9KX0gPSBcZnJhY3tQKFx0ZXh0cm17dG94aWN9KVxwcm9kX3tpPTF9Xm5QKFx0ZXh0cm17d29yZH1faXxcdGV4dHJte3RveGljfSl9e1AoXHRleHRybXtnb29kfSlccHJvZF97aT0xfV5uUChcdGV4dHJte3dvcmR9X2l8XHRleHRybXtnb29kfSl9ID4gMSBccmlnaHRhcnJvdyBcdGV4dHJte3RhZyBhcyB0b3hpYywgZWxzZSB0YWcgYXMgZ29vZH0kJA0KDQpUbyBwcmV2ZW50IGFyaXRobWV0aWMgdW5kZXJmbG93LCB3ZSBpbnN0ZWFkIGNhbGN1bGF0ZSB0aGUgc3VtIG9mIHRoZSBsb2dzIG9mIHRoZSBwcm9iYWJpbGl0aWVzOg0KDQokJFx0ZXh0cm17aWYgIH1cbG9ne1AoXHRleHRybXt0b3hpY318XHRleHRybXttZXNzYWdlfSl9LVxsb2d7UChcdGV4dHJte2dvb2R9fFx0ZXh0cm17bWVzc2FnZX0pfSA9IFtcbG9ne1AoXHRleHRybXt0b3hpY30pK1xzdW1fe2k9MX1eblxsb2cgUChcdGV4dHJte3dvcmR9X2l8XHRleHRybXt0b3hpY30pfV0tW1xsb2d7UChcdGV4dHJte2dvb2R9KVxzdW1fe2k9MX1eblxsb2cgUChcdGV4dHJte3dvcmR9X2l8XHRleHRybXtnb29kfSl9XSA+IDAgXHJpZ2h0YXJyb3cgXHRleHRybXt0YWcgYXMgdG94aWMsIGVsc2UgdGFnIGFzIGdvb2QgfSBcdGV4dGJmeygxKX0kJA0KSXQgcmVtYWlucyB0byBkZWNpZGUgaG93IHRvIGNhbGN1bGF0ZSB0aGUgcHJvYmFiaWxpdGllcy4gIEZvciB0aGlzIGltcGxlbWVudGF0aW9uLCB3ZSB3aWxsIHNpbXBseSB1c2UgdGhlIG1heGltdW0gbGlrZWxpaG9vZCBlc3RpbWF0b3IsIHRoZSBmcmFjdGlvbiBvZiBvYnNlcnZlZCBjb3VudHMgd2l0aGluIHRoZSB0b3hpYyBhbmQgZ29vZCBtZXNzYWdlcy4gIFNwZWNpZmljYWxseTogJCRcZnJhY3tuX2l9e059LCBcdGV4dHJte3doZXJlIH1uX2lcdGV4dHJte2lzIHRoZSBvYnNlcnZlZCBjb3VudHMgb2YgYSBwYXJ0aWN1bGFyIHdvcmQgaW4gYWxsIG1lc3NhZ2VzIG9mIHRoZSBzYW1lIGNsYXNzICh0b3hpYyBvciBnb29kKSwgYW5kIH1OXHRleHRybXsgaXMgdGhlIHRvdGFsIHdvcmQgY291bnQgd2l0aGluIHRoYXQgY2xhc3N9JCQNCg0KRm9yIGVhY2ggY2xhc3MsIHdlIGNyZWF0ZSBhIHRhYmxlIGNvbnRhaW5pbmcgZWFjaCB3b3JkLCBhbmQgaXRzIGFzc29jaWF0ZWQgbG9nIHByb2JhYmlsaXR5LiAgRnJvbSB0aGlzLCB3ZSBjYW4gY2FsY3VsYXRlIHRoZSBwcm9iYWJpbGl0aWVzIGluICoqKDEpKiogYW5kIG9idGFpbiBvdXIgcHJlZGljdGlvbiBmb3IgYSBnaXZlbiBtZXNzYWdlLiAgV2UgY2FuIGNhbGN1bGF0ZSB0aGUgInRveGljaXR5IiBvZiBhIHdvcmQgYnkgdGhlIHJhdGlvIG9mIHRoZSBsb2cgcHJvYmFiaWxpdGllcyB3aXRoIHRoZSB0b3hpYyBwcm9iYWJpbGl0eSBpbiB0aGUgbnVtZXJhdG9yLiAgDQoNCiMjIyNUb3AgNzUgbm9uLXRveGljIHdvcmRzIChsb3dlc3QgNzUgbG9nIHByb2JhYmlsaXR5IHJhdGlvcyksIHNpemVkIGJ5IGNvdW50cy4gIA0KYGBge3IsIGNhY2hlID0gVFJVRX0NCiNEaXZpZGUgaW50byB0cmFpbiBhbmQgdGVzdCBzZXRzDQpkb2Nfc3RyaXBwZWRfc2NvcmVzIDwtIGRvY19zdHJpcHBlZCAlPiUgDQogIGxlZnRfam9pbihjb21tZW50c19zY29yZXMsIGJ5ID0gInJldl9pZCIpICU+JSANCiAgc2VsZWN0KHJldl9pZCwgdG9rZW4sIHNjb3JlKSANCg0Kd3JpdGVfZmVhdGhlcihkb2Nfc3RyaXBwZWRfc2NvcmVzLCAiRGF0YS9jb3JwdXNfY2xlYW5fc2NvcmVzLmZlYXRoZXIiKQ0KDQpnb29kX3RyYWluIDwtIGRvY19zdHJpcHBlZF9zY29yZXMgJT4lIA0KICBmaWx0ZXIoc2NvcmUgPT0gMCkgJT4lDQogIHNhbXBsZV9mcmFjKDAuOCkNCg0KZ29vZF90ZXN0IDwtIGRvY19zdHJpcHBlZF9zY29yZXMgJT4lIA0KICBmaWx0ZXIoc2NvcmUgPT0gMCkgJT4lIA0KICBhbnRpX2pvaW4oZ29vZF90cmFpbikNCg0KdG94aWNfdHJhaW4gPC0gZG9jX3N0cmlwcGVkX3Njb3JlcyAlPiUgDQogIGZpbHRlcihzY29yZSA9PSAxKSAlPiUNCiAgc2FtcGxlX2ZyYWMoMC44KQ0KDQp0b3hpY190ZXN0IDwtIGRvY19zdHJpcHBlZF9zY29yZXMgJT4lIA0KICBmaWx0ZXIoc2NvcmUgPT0gMSkgJT4lDQogIGFudGlfam9pbih0b3hpY190cmFpbikNCg0KI2dldCBwcm9iYWJpbGl0eSB0YWJsZXMNCmFsbHByb2JzIDwtIGdldF9wcm9iX3RhYmxlcyh0b3hpY190cmFpbiwgZ29vZF90cmFpbiwgdG9rZW4pDQpgYGANCg0KYGBge3J9DQojY3JlYXRlIGEgc2luZ2xlIHRhYmxlIGZvciBjb252ZW5pZW5jZSBpbiB2aXN1YWxpemF0aW9uDQpmdWxsdGFibGUgPC0gaW5uZXJfam9pbihhbGxwcm9ic1tbMV1dLCBhbGxwcm9ic1tbMl1dLCBieSA9ICJ0b2tlbiIpICU+JSBtdXRhdGUocmF0aW8gPSBsb2dwcm9iXzEvbG9ncHJvYl8wKQ0KDQp3b3JkY2xvdWQyKGZ1bGx0YWJsZSAlPiUgDQogICAgICAgICAgICAgZmlsdGVyKG4ueCA+IDEsIG4ueSA+IDEpICU+JSANCiAgICAgICAgICAgICB0b3Bfbig3NSwgd3QgPSByYXRpbykgJT4lDQogICAgICAgICAgICAgbXV0YXRlKHJhbmsgPSByYW5rKG4ueSkpICU+JQ0KICAgICAgICAgICAgIHNlbGVjdCh0b2tlbiwgcmFuayksDQogICAgICAgICAgIHNpemUgPSAwLjUsDQogICAgICAgICAgIGNvbG9yICA9ICIjMkQ4REQ2IiwNCiAgICAgICAgICAgYmFja2dyb3VuZENvbG9yID0gIiNFOUVERUYiKQ0KDQpgYGANCg0KIyMjI1RvcCA3NSBub24tdG94aWMgd29yZHMgKGxvd2VzdCA3NSBsb2cgcHJvYmFiaWxpdHkgcmF0aW9zKSwgc2l6ZWQgYnkgY291bnRzLiAgDQpgYGB7cn0NCndvcmRjbG91ZDIoZnVsbHRhYmxlICU+JSANCiAgICAgICAgICAgICBmaWx0ZXIobi54ID4gMSwgbi55ID4gMSkgJT4lIA0KICAgICAgICAgICAgIHRvcF9uKDc1LCB3dCA9IDEvcmF0aW8pICU+JQ0KICAgICAgICAgICAgIG11dGF0ZShyYW5rID0gcmFuayhuLngpLCB0b2tlbiA9IGdzdWIoIltBLVphLXowLTldIiwgIiohIiwgdG9rZW4pKSAlPiUNCiAgICAgICAgICAgICBzZWxlY3QodG9rZW4sIHJhbmspLA0KICAgICAgICAgICBzaXplID0gMC41LA0KICAgICAgICAgICBjb2xvciAgPSAiIzJEOERENiIsDQogICAgICAgICAgIGJhY2tncm91bmRDb2xvciA9ICIjRTlFREVGIikNCmBgYA0KSXQgaXMgYXMgYWJvdXQgYXMgdnVsZ2FyIGFuZCByYWNpc3QgYXMgeW91IGNhbiBpbWFnaW5lLg0KDQojIyMqKlRlc3RpbmcqKg0KDQpGaW5hbGx5LCB3ZSBvYnRhaW4gcHJlZGljdGlvbnMgZm9yIGVhY2ggbWVzc2FnZSBhbmQgY2hlY2sgcGVyZm9ybWFuY2UuICBUaGUgcHJpb3IgcHJvYmFiaWxpdGllcyBmb3IgdG94aWNpdHkgYW5kIG5vbi10b3hpY2l0eSAkUChcdGV4dHJte3RveGljfSwgUChcdGV4dHJte2dvb2R9KSQgYXJlIHNpbXBseSB0aGUgZnJhY3Rpb24gb2YgYWxsIGRvY3VtZW50cyB0aGF0IGJlbG9uZyB0byB0aGF0IGNsYXNzLg0KYGBge3J9DQpwX3RveGljIDwtIG5yb3codG94aWNfdHJhaW4pLyhucm93KHRveGljX3RyYWluKStucm93KGdvb2RfdHJhaW4pKQ0KcF9nb29kIDwtIDEtcF90b3hpYw0KDQpwcmVkcyA8LSB0ZXN0X21vZGVsKHJiaW5kKHRveGljX3Rlc3QsIGdvb2RfdGVzdCksIGFsbHByb2JzW1sxXV0sIGFsbHByb2JzW1syXV0sIHRva2VuLCByZXZfaWQsIHByaW9yXzAgPSBwX2dvb2QsIHByaW9yXzEgPSBwX3RveGljKQ0KDQphcy5tYXRyaXgodGFibGUocHJlZHMkc2NvcmUsIHByZWRzJHByZWQpKSAlPiUga2FibGUoKQ0KDQpgYGANCg0KVGhlIGFjY3VyYWN5IGhlcmUgaXMgbm90IGdyZWF0LCB3ZSBhcmUgY29ycmVjdGx5IGZsYWdnaW5nIHRveGljIG1lc3NhZ2VzIHdpdGggYWJvdXQgNzYlIGFjY3VyYWN5IGFuZCBzb21lIHN1cHBvc2VkbHkgaW5ub2NlbnQgY29tbWVudHMgYXJlIGJlaW5nIGZsYWdnZWQgYXMgd2VsbC4gIFRoZSBtaXNjbGFzc2lmaWVkIGNvbW1lbnRzIHRlbmQgdG8gYmUgbW9yZSBiZW5pZ24uICBUaGVpciBhdmVyYWdlIHN1bSBvZiBzY29yZXMgKG5vdCBzaW1wbGlmaWVkIHRvIDAtMSkgdGVuZCB0byBiZSBjbG9zZXIgdG8gMCB0aGFuIHRoZSBjb3JyZWN0bHkgY2xhc3NpZmllZCBjb21tZW50cy4NCg0KRmluYWxseSwgd2UgYXR0ZW1wdCB0byBpbXByb3ZlIG91ciBhY2N1cmFjeSB1c2luZyB0Zi1pZGYgdmVjdG9yaXphdGlvbiBpbiBQeXRob24uICBUaGUgZGF0YSBpcyBwYXNzZWQgYmV0d2VlbiBSIGFuZCBQeXRob24gdXNpbmcgdGhlIC5mZWF0aGVyIGZpbGUgZm9ybWF0LiAgVGhpcyBpcyBhY2NvbXBsaXNoZWQgY29tcGxldGVseSB3aXRoaW4gdGhpcyBub3RlYm9vay4gIFJlc3VsdHMgc2hvd24gYmVsb3cuICANCg0KYGBge3B5dGhvbn0NCmltcG9ydCBmZWF0aGVyDQppbXBvcnQgbnVtcHkgYXMgbnANCmltcG9ydCBwYW5kYXMgYXMgcGQNCg0KZnJvbSBza2xlYXJuIGltcG9ydCBtb2RlbF9zZWxlY3Rpb24sIG1ldHJpY3MsIGZlYXR1cmVfZXh0cmFjdGlvbg0KZnJvbSBza2xlYXJuLnBpcGVsaW5lIGltcG9ydCBtYWtlX3BpcGVsaW5lDQpmcm9tIHNrbGVhcm4ubmFpdmVfYmF5ZXMgaW1wb3J0IE11bHRpbm9taWFsTkINCmZyb20gc2tsZWFybi5mZWF0dXJlX2V4dHJhY3Rpb24udGV4dCBpbXBvcnQgVGZpZGZWZWN0b3JpemVyDQoNCmRhdGEgPSBmZWF0aGVyLnJlYWRfZGF0YWZyYW1lKCJDOi9Vc2Vycy9EYW5pZWwvRG9jdW1lbnRzL0dpdCBSZXBvcy9iYXllc2NsYXNzaWZpZXIvRGF0YS9jb3JwdXNfY2xlYW5fc2NvcmVzLmZlYXRoZXIiKQ0KZGF0YSA9IGRhdGEuaWxvY1swOi0xLF0NCg0KWF90cmFpbiwgWF90ZXN0LCB5X3RyYWluLCB5X3Rlc3QgPSBtb2RlbF9zZWxlY3Rpb24udHJhaW5fdGVzdF9zcGxpdChkYXRhWyd0b2tlbiddLCBkYXRhWydzY29yZSddLCB0ZXN0X3NpemUgPSAwLjIsIHJhbmRvbV9zdGF0ZSA9IDQyKQ0KDQpjbGY9IG1ha2VfcGlwZWxpbmUoVGZpZGZWZWN0b3JpemVyKCksIE11bHRpbm9taWFsTkIoYWxwaGE9MC4wMSkpDQoNCmNsZi5maXQoWF90cmFpbiwgeV90cmFpbikNCg0KeV9wcmVkID0gY2xmLnByZWRpY3QoWF90ZXN0KQ0KDQptZXRyaWNzLmFjY3VyYWN5X3Njb3JlKHlfdGVzdCwgeV9wcmVkKQ0KcGQuY3Jvc3N0YWIoeV9wcmVkLCB5X3Rlc3QpDQoNCnRhYmxlX291dCA9IHBkLmNvbmNhdChbWF90ZXN0LCB5X3Rlc3RdLCBheGlzID0gMSkNCnRhYmxlX291dFsicHJlZHMiXSA9IHlfcHJlZA0KDQpmZWF0aGVyLndyaXRlX2RhdGFmcmFtZSh0YWJsZV9vdXQsICJDOi9Vc2Vycy9EYW5pZWwvRG9jdW1lbnRzL0dpdCBSZXBvcy9iYXllc2NsYXNzaWZpZXIvRGF0YS9weXRob25fcHJlZHNfb3V0LmZlYXRoZXIiKQ0KDQpgYGANCg0KYGBge3J9DQpweXByZWRzIDwtIHJlYWRfZmVhdGhlcigiRGF0YS9weXRob25fcHJlZHNfb3V0LmZlYXRoZXIiKQ0KDQp0YWJsZShweXByZWRzJHByZWRzLCBweXByZWRzJHNjb3JlKSAlPiUgYXMubWF0cml4KCkgJT4lIGthYmxlKCkNCmBgYA0KDQpPdXIgYWNjdXJhY3kgaW1wcm92ZXMgYXBwcmVjaWFibHksIHdpdGggYW4gb3ZlcmFsbCB+OTIlIGFjY3VyYWN5IGFuZCB+ODclIGNvcnJlY3QgY2xhc3NpZmljYXRpb24gb2YgdG94aWMtcmF0ZWQgY29tbWVudHMuDQo=</div>
 
 
 
